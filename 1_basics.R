@@ -11,8 +11,14 @@ fix_names <- function(df) {
 }
 
 # Now let's import the files (which are saved as .csv files)
-# TRAIN1 is some data from Compustat (plus a PERMNO link that I manually added);
-# TRAIN2 is some data from CRSP;
+# TRAIN1 is some data from Compustat (plus a PERMNO link that I manually added).
+# TRAIN2 is some data from CRSP
+#
+# SAS has just two data types: floating-point numberic and fixed-width characters
+# R has a much richer set of data types. A cost is that one needs to be a bit more
+# precise when importing data from (say) CSV files. When using cleaned data, the
+# data-types will be pre-specified.
+#
 train1 <-
   read_csv("data/train1.csv",
            col_types = "iDiciddddddi",
@@ -28,16 +34,16 @@ train2 <-
 train1
 train2
 
-
-
-
-
 # For most things in SAS, there are multiple ways of doing things.
 # We are going to start by introducing a few basic
 #	things in the common SAS language -- we are going to move through this quickly,
 # however, since I tend to focus on doing things using PROC SQL.
 # This will be our next topic.;
 
+# IDG: There's no real need to learn SQL separately with dplyr.
+#      Instead dplyr uses a slightly modified version of SQL (in effect).
+#      The ideas are the same. If the data source is an SQL source, then
+#      dplyr will translate the dplyr code into SQL behind the scenes.
 
 # Let's assume for my study that I'm interested in Gross Margin by year by company.
 #	Second, I want an ID number based on calendar time.
@@ -49,7 +55,7 @@ train2
 gm <-
   train1 %>%
   select(gvkey, datadate, fyear, fyr, conm, sale, cogs) %>%
-  mutate(margin = 100* (sale - cogs)/sale) # calculate Gross Margin
+  mutate(margin = 100 * (sale - cogs)/sale) # calculate Gross Margin
 
 # Step 2 - Sort data and add ID;
 gm2 <-
@@ -73,7 +79,6 @@ gm4 <-
   mutate(gvkey2 = as.character(gvkey), # This makes it a character
          # This adds leading zeroes
          gvkey3 = str_pad(gvkey2, width = 6, pad = "0"))
-
 
 # Next in our assignment, we want to compare the GM from last year to this year. How should we do this?*/
 # A useful function is the lag() or lagX function.
@@ -130,7 +135,28 @@ gm8 <-
   gm7 %>%
   filter(!is.na(chgmargin)) # Remove entries with missing data
 
-# Great we've completed our analysis.  This is our end file.  We should save it, so we can look at it later;
+# Great we've completed our analysis.
+# This is our end file.  We should save it, so we can look at it later.
 margins <- gm8
 
+# Here's the above in one go, but slightly streamlined:
+# (I simply converted GVKEY to the right format rather than keeping
+#  alternative versions of it.)
+margins <-
+  train1 %>%
+  select(gvkey, datadate, fyear, fyr, conm, sale, cogs) %>%
+  mutate(margin = 100 * (sale - cogs)/sale) %>%
+  arrange(datadate) %>%
+  mutate(id = row_number(),
+         gvkey = str_pad(gvkey, width = 6, pad = "0"),
+         founder = case_when(gvkey == "006066" ~ 'FLINT',
+                             gvkey == "001690" ~ 'JOBS'),
+         fdate = ymd(paste(fyear, "12-31", sep="-"))) %>%
+  group_by(gvkey) %>%
+  arrange(fdate) %>%
+  mutate(chgmargin = margin - lag(margin)) %>%
+  ungroup() %>%
+  arrange(gvkey, datadate)
+
+margins
 save(margins, file = "margins.Rdata")
