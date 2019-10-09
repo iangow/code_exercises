@@ -28,7 +28,7 @@ train1 <-
 train2 <-
   read_csv("data/train2.csv", col_types = "iiDddddd",
            na="C",
-           locale = locale(date_format = "%Y%M%d")) %>%
+           locale = locale(date_format = "%Y%m%d")) %>%
   fix_names()
 
 train1
@@ -159,4 +159,6 @@ margins <-
   arrange(gvkey, datadate)
 
 margins
-save(margins, file = "margins.Rdata")
+saveRDS(margins, file = "data/margins.rds")
+saveRDS(train1, file = "data/train1.rds")
+saveRDS(train2, file = "data/train2.rds")
